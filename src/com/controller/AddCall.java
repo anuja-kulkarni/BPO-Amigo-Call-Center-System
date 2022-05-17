@@ -39,10 +39,10 @@ import com.service.impl.UserServiceImpl;
 import net.didion.jwnl.JWNL;
 
 /**
- * Servlet implementation class AddAudioCall
+ * Servlet implementation class AddCall
  */
-@WebServlet("/AddAudioCall")
-public class AddAudioCall extends HttpServlet implements Constant {
+@WebServlet("/AddCall")
+public class AddCall extends HttpServlet implements Constant {
 	private static final long serialVersionUID = 1L;
 	HttpSession session;
 	RequestDispatcher rd;
@@ -51,9 +51,8 @@ public class AddAudioCall extends HttpServlet implements Constant {
 	/**
 	 * @see HttpServlet#HttpServlet()
 	 */
-	public AddAudioCall() {
+	public AddCall() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
 	public void init(ServletConfig config) throws ServletException {
@@ -71,10 +70,8 @@ public class AddAudioCall extends HttpServlet implements Constant {
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 		session = request.getSession(true);
-		url_path = "./add_audio_call.jsp";
-		String callTextData = request.getAttribute("call_data_text").toString();
-		String fileName = request.getAttribute("fileName").toString();
-
+		url_path = "./add_call.jsp";
+		String callTextData = request.getParameter("call_data_text");
 		/**
 		 * Apply Naive Bayes Algorithm here
 		 */
@@ -88,25 +85,24 @@ public class AddAudioCall extends HttpServlet implements Constant {
 			 */
 			bayes.learn(dataset.getCategoryName(), Arrays.asList(dataset.getProcessedTextData().split("\\s+")));
 		}
-
+		
 		SentimentDatasetService sentimentDatasetService = new SentimentDatasetServiceImpl();
 		List<SentimentDataset> sentimentDatasets = sentimentDatasetService.loadDataset();
 		/**
-		 * All call review train dataset
+		 * All call review train dataset 
 		 */
 		final Classifier<String, String> naiveBayes = new BayesClassifier<String, String>();
-		for (SentimentDataset sentimentDataset : sentimentDatasets) {
-			/**
-			 * TRAIN MODULE
-			 */
-			naiveBayes.learn(sentimentDataset.getCategoryName(), sentimentDataset.getFeatureSet());
-		}
+        for(SentimentDataset sentimentDataset : sentimentDatasets) {
+        	/**
+        	 * TRAIN MODULE
+        	 */
+        	naiveBayes.learn(sentimentDataset.getCategoryName(), sentimentDataset.getFeatureSet());
+        }
 		Call call = new Call();
 		int callId = ConstantMethod.getNewID(Database.getConnection(), TABLE_NAME_CALL, CALL_ID);
 		call.setCallId(callId);
 		call.setCallText(callTextData);
 		call.setAddCallDate(ConstantMethod.getCurrentDateAndTime());
-		call.setAudioFilePath(fileName);
 		call.setStatus(1);
 		int userId = Integer.parseInt(session.getAttribute("user_id_session").toString());
 		UserService userService = new UserServiceImpl();
@@ -128,8 +124,7 @@ public class AddAudioCall extends HttpServlet implements Constant {
 			/**
 			 * APPPLY CLASSIFIER
 			 */
-			String predictCategoryName = naiveBayes.classify(Arrays.asList(processesTextData.split("\\s+")))
-					.getCategory();
+			String predictCategoryName = naiveBayes.classify(Arrays.asList(processesTextData.split("\\s+"))).getCategory();
 			float probability = naiveBayes.classify(Arrays.asList(processesTextData.split("\\s+"))).getProbability();
 
 			session.setAttribute("msg", "Call text data added successfully.");
@@ -164,14 +159,14 @@ public class AddAudioCall extends HttpServlet implements Constant {
 				 * IMPROVE DATASET
 				 * 
 				 */
-				Dataset dataset = new Dataset();
-				dataset.setCallTextData(line);
-				dataset.setProcessedTextData(lineStopwordsRemovable);
-				dataset.setCategoryName(predictCategory);
-				if (datasetService.save(dataset)) {
-					System.out.println("Add train dataset....");
-				}
-
+                 Dataset dataset = new Dataset();
+                 dataset.setCallTextData(line);
+                 dataset.setProcessedTextData(lineStopwordsRemovable);
+                 dataset.setCategoryName(predictCategory);
+                 if(datasetService.save(dataset)) {
+                	 System.out.println("Add train dataset....");
+                 }
+                 
 				aspectResult.append("categoryName=").append(predictCategory).append(",").append("probability=")
 						.append(classProbability + "").append("\n");
 
